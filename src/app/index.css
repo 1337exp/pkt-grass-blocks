@@ -1,0 +1,11 @@
+html,
+body,
+#app {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    background: var(--tao-color-bg);
+    color: var(--tao-color-text);
+}
