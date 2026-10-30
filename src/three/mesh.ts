@@ -112,8 +112,6 @@ export function buildWorldMesh(world: World): THREE.Group {
             ...(material === 'water' ? { transparent: true, opacity: 0.86 } : {}),
         });
         const mesh = new THREE.Mesh(geo, mat);
-        mesh.castShadow = material !== 'water';
-        mesh.receiveShadow = true;
         mesh.userData.picks = b.picks;
         group.add(mesh);
     }
@@ -143,6 +141,10 @@ function side(world: World, s: number, x: number, z: number, y0: number, y1: num
     }
 }
 
+/**
+ * Юбка закрывает борт наклона от низкого верха до поднятых углов. Если поднят один угол, четырёхугольник схлопывается
+ * в треугольник, и прежний порядок вершин смотрел нормалью внутрь: грань отсекалась, и сквозь склон был виден фон.
+ */
 function skirt(s: number, x: number, z: number, y1: number, corners: Corners, span: { y0: number; material: string }, take: (m: string, k: FaceKind) => Bucket, P: (x: number, y: number, z: number) => number[]): void {
     const y = (ix: number, iz: number) => cornerY(y1, corners, ix, iz);
     const walls: { nx: -1 | 0 | 1; nz: -1 | 0 | 1; at: [number, number, number, number] }[] = [
@@ -160,8 +162,37 @@ function skirt(s: number, x: number, z: number, y1: number, corners: Corners, sp
         const z0 = z + iz0!;
         const x1 = x + ix1!;
         const z1 = z + iz1!;
-        quad(take(span.material, 'side'), [P(x0, y1, z0), P(x0, h0, z0), P(x1, h1, z1), P(x1, y1, z1)], { x, y: y1 - 1, z, nx: wall.nx, ny: 0, nz: wall.nz, spanY0: span.y0, material: span.material, kind: 'side' }, [0, y1 * s, 0, h0 * s, s, h1 * s, s, y1 * s]);
+        outwardFace(
+            take(span.material, 'side'),
+            [P(x0, y1, z0), P(x0, h0, z0), P(x1, h1, z1), P(x1, y1, z1)],
+            [wall.nx, 0, wall.nz],
+            { x, y: y1 - 1, z, nx: wall.nx, ny: 0, nz: wall.nz, spanY0: span.y0, material: span.material, kind: 'side' },
+            [0, y1 * s, 0, h0 * s, s, h1 * s, s, y1 * s],
+        );
     }
+}
+
+/** Грань наружу: если нормаль первых трёх точек смотрит против `out`, порядок вершин переворачивается. */
+function outwardFace(b: Bucket, pts: number[][], out: [number, number, number], pick: PickFace, uv: number[]): void {
+    const uniq: number[][] = [];
+    for (const p of pts) {
+        const prev = uniq[uniq.length - 1];
+        if (prev && Math.hypot(p[0]! - prev[0]!, p[1]! - prev[1]!, p[2]! - prev[2]!) < 1e-5) continue;
+        uniq.push(p);
+    }
+    const first = uniq[0];
+    const last = uniq[uniq.length - 1];
+    if (first && last && uniq.length > 1 && Math.hypot(first[0]! - last[0]!, first[1]! - last[1]!, first[2]! - last[2]!) < 1e-5) uniq.pop();
+    if (uniq.length < 3) return;
+    const ab = [uniq[1]![0]! - uniq[0]![0]!, uniq[1]![1]! - uniq[0]![1]!, uniq[1]![2]! - uniq[0]![2]!];
+    const ac = [uniq[2]![0]! - uniq[0]![0]!, uniq[2]![1]! - uniq[0]![1]!, uniq[2]![2]! - uniq[0]![2]!];
+    const n = [ab[1]! * ac[2]! - ab[2]! * ac[1]!, ab[2]! * ac[0]! - ab[0]! * ac[2]!, ab[0]! * ac[1]! - ab[1]! * ac[0]!];
+    const ordered = n[0]! * out[0] + n[1]! * out[1] + n[2]! * out[2] < 0 ? [...uniq].reverse() : uniq;
+    if (ordered.length === 3) {
+        tri(b, ordered[0]!, ordered[1]!, ordered[2]!, pick, uv.slice(0, 6));
+        return;
+    }
+    quad(b, [ordered[0]!, ordered[1]!, ordered[2]!, ordered[3]!], pick, uv);
 }
 
 /** Сетка чуть внутри клетки, чтобы общее ребро двух колонн не мерцало. */

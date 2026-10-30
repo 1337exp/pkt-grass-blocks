@@ -1,4 +1,6 @@
 // Сцена: орбита, вид сверху, солнце по часу и луч в грань. Vue сюда не входит.
+// Свет общий: направленное солнце и полусфера меняют цвет и силу вместе с часом. Карты теней нет —
+// отбрасываемую тень, если она понадобится, проще добавить на конкретный объект, чем считать её для всей карты.
 
 import * as THREE from 'three';
 import { bounds, type World } from '@core/world';
@@ -46,13 +48,8 @@ export class Stage {
         host.appendChild(canvas);
         this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        this.renderer.shadowMap.enabled = true;
-        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         this.renderer.outputColorSpace = THREE.SRGBColorSpace;
         this.camera = new THREE.OrthographicCamera(-HALF, HALF, HALF, -HALF, 0.1, 200);
-        this.sun.castShadow = true;
-        this.sun.shadow.mapSize.set(2048, 2048);
-        this.sun.shadow.bias = -0.0004;
         this.scene.add(this.ambient, this.sun, this.sun.target, this.worldGroup);
         this.resize();
     }
@@ -65,7 +62,6 @@ export class Stage {
         this.cycleHours = world.sky.cycleHours;
         this.hour = world.sky.hour;
         this.applySky();
-        this.fitShadows(world);
         if (frame) this.frame(world);
     }
 
@@ -219,19 +215,6 @@ export class Stage {
         this.place();
     }
 
-    private fitShadows(world: World): void {
-        const box = bounds(world);
-        const span = box ? Math.max(box.x1 - box.x0, box.z1 - box.z0, 8) * world.block + 6 : 20;
-        const cam = this.sun.shadow.camera as THREE.OrthographicCamera;
-        cam.left = -span;
-        cam.right = span;
-        cam.top = span;
-        cam.bottom = -span;
-        cam.near = 0.5;
-        cam.far = DISTANCE * 2;
-        cam.updateProjectionMatrix();
-    }
-
     private disposeGroup(group: THREE.Group): void {
         const materials = new Set<THREE.Material>();
         for (const child of [...group.children]) {
@@ -277,10 +260,7 @@ function buildProps(world: World): THREE.Group {
         }
         root.traverse((obj) => {
             const mesh = obj as THREE.Mesh;
-            if (!mesh.isMesh) return;
-            mesh.castShadow = true;
-            mesh.receiveShadow = true;
-            mesh.raycast = () => {};
+            if (mesh.isMesh) mesh.raycast = () => {};
         });
         group.add(root);
     }
