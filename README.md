@@ -37,6 +37,37 @@ npm run screenshot    # docs/media/overview.png, needs Chrome or Edge
 
 Settings are plain sliders in [`src/controls.ts`](src/controls.ts): wind sway, grass seed, tint spread, blade density, soil noise and scale, cracks, veins, pebbles, stone scale, shadows, wall darkening, edge roughness, corner radius and fringe length.
 
+## Ideas worth stealing
+
+The point of the project is less the code than the way we got there: start with something plain and add one cheap trick at a time, looking at the screen after each one. Roughly in the order of how much each one mattered.
+
+**The approach in four lines**
+1. **Silhouette before texture.** A flat painted texture on a flat plane looks like a sticker. The scene came alive when the *outline* became irregular and the grass stuck up, not when the textures got better.
+2. **Fake light with data, not with lighting.** Shadows are numbers baked into vertices or computed from the same noise that shapes the fringe, so they are cheap and always match the shape.
+3. **Everything in world space.** Noise and textures follow the world, not the block, so neighbours continue each other and rotation does not make patterns swim.
+4. **A slider for every guess.** Each trick got a slider, and the values were chosen by eye. That is how a vague "a bit more shadow, a bit less noise" turns into defaults in minutes.
+
+**Tricks, from the biggest effect down**
+- **Grass blades as cards.** Instanced quads that face the camera around the vertical axis, with the blade shape drawn in the fragment shader (a pointed, curved triangle) and cut out with `discard`. No alpha blending, so nothing to sort. Lean the blades outward along open edges and the silhouette bristles.
+- **A fringe cut by noise.** The grass skin is discarded below a ragged length taken from a noise function. Add a second, fine noise to the cut edge so it is not plastic.
+- **A shadow that follows the fringe.** Under the fringe, average the fringe length at a few points along the wall. The shadow then repeats the drips but is soft.
+- **Shadow at the foot of tall walls.** A per-vertex value (distance to a taller neighbour), with extra grid lines near the wall so the gradient is smooth.
+- **One mesh from a height grid.** Build no inner faces and round only exposed edges. This removes seams that no amount of shading hides.
+- **Triplanar blending for corners.** When the wall coordinate switches faces on a rounded corner, a seam appears. Blend the projections by the normal's weights instead.
+- **Soil as noise layers.** Blotches, grain, then cracks (thin lines of ridged noise), veins and a pebble per grid cell. Small, but this is what turns "brown" into soil.
+- **A mask from an existing texture.** The stone texture's luminance has two humps (gaps and stones), so a threshold gives a clean mask. Stones over soil, with a shadow from a shifted copy of the mask and a bright top edge, give relief without a normal map.
+- **A tint per cell from a hash, plus a seed.** Cheap variety that makes a flat field read as patches.
+- **Walls that darken as they turn from the camera.** It was born from a bug (a transparency experiment that faded walls) and turned out to be a fun stylization. Treat bugs as input.
+
+**Pitfalls we hit**
+- GLSL reserves more words than you think: `patch`, `cast`, `half`. Rename the variable.
+- `pow(x, y)` with a slightly negative `x` is NaN and quietly skips a `discard` test: clamp it.
+- Two coplanar surfaces z-fight. Lower one of them a hair.
+- Rounding each cube separately creates seams and holes at big radii. Round on exposed edges only and put a floor under rounded columns.
+- Things we tried and dropped: blades hanging along the fringe (artifacts at the roots), transparency-blurred corners (fragile), roots under the grass (looked like scratches).
+
+**How it was made.** Built in conversation with Claude (Claude Code), with a second model through the Cursor agent doing the heavy analysis and generating the painted textures. The workflow for those is in [`docs/textures.md`](docs/textures.md).
+
 ## Layout
 
 ```
