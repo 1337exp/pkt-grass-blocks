@@ -1,4 +1,4 @@
-# pkt-block-topo
+# pkt-grass-blocks
 
 <p align="center">
   <img src="docs/media/overview.png" alt="Рисованный изометрический остров из блоков: трава с травинками, бахрома над мягкой землёй" width="860">

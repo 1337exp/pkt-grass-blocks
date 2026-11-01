@@ -6,7 +6,7 @@
 ## Как вызывать (генерация картинки)
 
 ```powershell
-agent -p --force --trust --workspace E:\job\git\pkt-block-topo\public\tex --model grok-4.7-medium "<описание>. Сохрани PNG именно в grass-top.png. В конце ответа напиши абсолютный путь файла."
+agent -p --force --trust --workspace "$PWD\public\tex" --model grok-4.7-medium "<описание>. Сохрани PNG именно в grass-top.png. В конце ответа напиши абсолютный путь файла."
 ```
 
 - `--force` обязателен: генерация картинки спрашивает разрешение, а в `-p` ответить некому, и без флага вызов отклоняется. Режимы `ask` и `plan` файлы не пишут.

@@ -1,4 +1,4 @@
-# pkt-block-topo
+# pkt-grass-blocks
 
 <p align="center">
   <img src="docs/media/overview.png" alt="A hand-painted isometric block island: grass with blades, a fringe over soft soil" width="860">

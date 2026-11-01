@@ -1,8 +1,8 @@
 {
-  "name": "pkt-block-topo",
+  "name": "pkt-grass-blocks",
   "private": true,
   "version": "0.0.0",
-  "description": "Block topology for tactical and illustrated maps: columns, holes, spans, a Three.js mesh and a light Vue editor.",
+  "description": "Procedural stylized grass-and-soil blocks in Three.js. A sandbox for cheap tricks that make a flat grid look alive.",
   "type": "module",
   "scripts": {
     "dev": "vite",
