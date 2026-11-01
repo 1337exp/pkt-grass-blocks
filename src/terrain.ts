@@ -13,7 +13,7 @@ const RADIUS = 0.13;
 /** Верх камня лежит ниже травяной оболочки на столько, чтобы их верхние грани не совпадали. */
 const STONE_DROP = 0.03;
 /** Радиус скругления камня в долях клетки, как border-radius в процентах. */
-const STONE_RADIUS = 0.2;
+const STONE_RADIUS = 0.1;
 
 const color = (hex: number): THREE.Color => new THREE.Color(hex);
 
@@ -42,7 +42,7 @@ export interface Terrain {
 export function createTerrain(map: HeightMap): Terrain {
     const group = new THREE.Group();
 
-    const shared = { uSeed: controls.seed, uVariation: controls.variation, uDrip: controls.drip, uShadow: controls.shadow, uFringeShadow: controls.fringeShadow, uDark: controls.dark };
+    const shared = { uSeed: controls.seed, uVariation: controls.variation, uDrip: controls.drip, uShadow: controls.shadow, uFringeShadow: controls.fringeShadow, uDark: controls.dark, uRough: controls.rough, uCoverage: controls.coverage, uFringeNoise: controls.fringeNoise };
 
     // Камень без навеса и с лёгким скруглением только открытых рёбер: внутренних швов нет, внешние грани соседей лежат в одной плоскости.
     const body = new THREE.Mesh(
@@ -56,9 +56,13 @@ export function createTerrain(map: HeightMap): Terrain {
                 uStoneScale: controls.stoneScale,
                 uMaskCut: controls.maskCut,
                 uRelief: controls.relief,
+                uCracks: controls.cracks,
+                uVeins: controls.veins,
+                uPebbles: controls.pebbles,
+                uMudNoise: controls.mudNoise,
+                uMudScale: controls.mudScale,
                 uMudDark: { value: color(0x6f5a36) },
                 uMudLight: { value: color(0x9c8651) },
-                uRoot: { value: color(0x2b2418) },
             },
         }),
     );

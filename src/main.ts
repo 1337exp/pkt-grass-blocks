@@ -102,7 +102,34 @@ bind('fringeShadow', (v) => (controls.fringeShadow.value = v));
 bind('cut', (v) => (controls.maskCut.value = v));
 bind('relief', (v) => (controls.relief.value = v));
 bind('dark', (v) => (controls.dark.value = v));
+bind('rough', (v) => (controls.rough.value = v));
+bind('coverage', (v) => (controls.coverage.value = v));
+bind('mudNoise', (v) => (controls.mudNoise.value = v));
+bind('mudScale', (v) => (controls.mudScale.value = v));
+bind('fringeNoise', (v) => (controls.fringeNoise.value = v));
+bind('cracks', (v) => (controls.cracks.value = v));
+bind('veins', (v) => (controls.veins.value = v));
+bind('pebbles', (v) => (controls.pebbles.value = v));
 bind('round', (v) => terrain.setStoneRadius(v / 100));
+
+// Сворачивание панели настроек; состояние запоминается, если браузер даёт хранилище.
+const panel = document.getElementById('panel') as HTMLElement;
+const toggle = document.getElementById('toggle') as HTMLButtonElement;
+const setCollapsed = (collapsed: boolean): void => {
+    panel.classList.toggle('collapsed', collapsed);
+    toggle.textContent = collapsed ? 'Настройки ▸' : 'Настройки ▾';
+    try {
+        localStorage.setItem('panel-collapsed', collapsed ? '1' : '0');
+    } catch {
+        // без хранилища панель просто не запоминает состояние
+    }
+};
+toggle.addEventListener('click', () => setCollapsed(!panel.classList.contains('collapsed')));
+try {
+    setCollapsed(localStorage.getItem('panel-collapsed') === '1');
+} catch {
+    setCollapsed(false);
+}
 
 placeCamera();
 resize();

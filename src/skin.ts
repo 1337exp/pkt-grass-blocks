@@ -17,6 +17,9 @@ export const LEVEL = 1;
 /** Шагов скругления на каждые 45 градусов дуги. */
 const STEPS = 4;
 
+/** На каком расстоянии от угла стенки камень перестаёт ложиться: у углов остаётся одна земля. */
+export const CORNER_REACH = 0.3;
+
 /** На каком расстоянии от высокой стенки заканчивается тень на нижнем ярусе. */
 export const SHADE_REACH = 0.55;
 
@@ -147,6 +150,7 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
     const topAttr: number[] = [];
     const cellAttr: number[] = [];
     const shadeAttr: number[] = [];
+    const cornerAttr: number[] = [];
     const index: number[] = [];
     const r = o.radius;
     const quarter = Math.PI / 4;
@@ -180,6 +184,7 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
                 face: Vec3,
                 top = false,
                 flat?: { top: number; cell: number },
+                corner?: (u: number) => number,
             ): void => {
                 const base = pos.length / 3;
                 for (const v of vs) {
@@ -224,6 +229,7 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
                         topAttr.push(flat ? flat.top : topY);
                         cellAttr.push(flat ? flat.cell : cell);
                         shadeAttr.push(shade);
+                        cornerAttr.push(corner ? corner(u) : 0);
                     }
                 }
 
@@ -288,10 +294,40 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
                 [0, 1, 0],
                 true,
             );
-            if (ex.e) addPatch(axisLine(zmin, zmax, ex.n, ex.s, r), rows(floor(i + 1, j)), (u, v) => [xmax, v, u], [1, 0, 0]);
-            if (ex.w) addPatch(axisLine(zmin, zmax, ex.n, ex.s, r), rows(floor(i - 1, j)), (u, v) => [xmin, v, u], [-1, 0, 0]);
-            if (ex.s) addPatch(axisLine(xmin, xmax, ex.w, ex.e, r), rows(floor(i, j + 1)), (u, v) => [u, v, zmax], [0, 0, 1]);
-            if (ex.n) addPatch(axisLine(xmin, xmax, ex.w, ex.e, r), rows(floor(i, j - 1)), (u, v) => [u, v, zmin], [0, 0, -1]);
+            // Углы стенки: открытый сосед по краю (выпуклый угол) или внутренний угол, где обрыв заворачивает. Возле них камень не кладём.
+            const notLower = (ni: number, nj: number): boolean => heightAt(m, ni, nj) >= h;
+            const cornerMask =
+                (lo: number, hi: number, a: boolean, b: boolean) =>
+                (u: number): number =>
+                    Math.max(a ? 1 - smooth(0, CORNER_REACH, u - lo) : 0, b ? 1 - smooth(0, CORNER_REACH, hi - u) : 0);
+            const cornerStops = (lo: number, hi: number, a: boolean, b: boolean): number[] => [
+                ...(a ? [0.1, 0.2, CORNER_REACH].map((t) => lo + t) : []),
+                ...(b ? [0.1, 0.2, CORNER_REACH].map((t) => hi - t) : []),
+            ];
+            const wall = (
+                lo: number,
+                hi: number,
+                a: boolean,
+                b: boolean,
+                open: [boolean, boolean],
+                bottom: number,
+                at: (u: number, v: number) => Vec3,
+                face: Vec3,
+                zone: [number, number],
+            ): void =>
+                addPatch(
+                    axisLine(zone[0], zone[1], open[0], open[1], r, cornerStops(lo, hi, a, b)),
+                    rows(bottom),
+                    at,
+                    face,
+                    false,
+                    undefined,
+                    cornerMask(lo, hi, a, b),
+                );
+            if (ex.e) wall(z0, z0 + 1, ex.n || notLower(i + 1, j - 1), ex.s || notLower(i + 1, j + 1), [ex.n, ex.s], floor(i + 1, j), (u, v) => [xmax, v, u], [1, 0, 0], [zmin, zmax]);
+            if (ex.w) wall(z0, z0 + 1, ex.n || notLower(i - 1, j - 1), ex.s || notLower(i - 1, j + 1), [ex.n, ex.s], floor(i - 1, j), (u, v) => [xmin, v, u], [-1, 0, 0], [zmin, zmax]);
+            if (ex.s) wall(x0, x0 + 1, ex.w || notLower(i - 1, j + 1), ex.e || notLower(i + 1, j + 1), [ex.w, ex.e], floor(i, j + 1), (u, v) => [u, v, zmax], [0, 0, 1], [xmin, xmax]);
+            if (ex.n) wall(x0, x0 + 1, ex.w || notLower(i - 1, j - 1), ex.e || notLower(i + 1, j - 1), [ex.w, ex.e], floor(i, j - 1), (u, v) => [u, v, zmin], [0, 0, -1], [xmin, xmax]);
 
             // Пол под колонкой на уровне соседей: у скруглённых углов видна земля, а не пустота.
             const base = o.floors ? floorOf(m, i, j) : null;
@@ -308,6 +344,7 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
     geo.setAttribute('aTop', new THREE.Float32BufferAttribute(topAttr, 1));
     geo.setAttribute('aCell', new THREE.Float32BufferAttribute(cellAttr, 1));
     geo.setAttribute('aShade', new THREE.Float32BufferAttribute(shadeAttr, 1));
+    geo.setAttribute('aCorner', new THREE.Float32BufferAttribute(cornerAttr, 1));
     geo.setIndex(index);
     geo.computeBoundingSphere();
     return geo;
