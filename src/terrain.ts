@@ -42,7 +42,7 @@ export interface Terrain {
 export function createTerrain(map: HeightMap): Terrain {
     const group = new THREE.Group();
 
-    const shared = { uSeed: controls.seed, uVariation: controls.variation, uDrip: controls.drip, uShadow: controls.shadow, uFringeShadow: controls.fringeShadow };
+    const shared = { uSeed: controls.seed, uVariation: controls.variation, uDrip: controls.drip, uShadow: controls.shadow, uFringeShadow: controls.fringeShadow, uDark: controls.dark };
 
     // Камень без навеса и с лёгким скруглением только открытых рёбер: внутренних швов нет, внешние грани соседей лежат в одной плоскости.
     const body = new THREE.Mesh(

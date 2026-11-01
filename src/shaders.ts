@@ -38,10 +38,12 @@ varying vec3 vN;
 varying float vTop;
 varying vec3 vTint;
 varying float vShade;
+varying float vFacing;
 
 uniform float uDrip;
 uniform float uShadow;
 uniform float uFringeShadow;
+uniform float uDark;
 ${noise}
 
 /** Как далеко от верхней кромки свисает трава в этой точке. Зависит только от (x, z), поэтому шов на углах непрерывен. */
@@ -63,6 +65,11 @@ float along(vec3 p, vec3 n) {
 
 const vec3 LIGHT = normalize(vec3(0.5, 0.8, 0.35));
 
+/** Затемнение стенок, повёрнутых от камеры: при вращении сцены они плавно темнеют. wall это доля стенки в пикселе (у верха ноль). */
+float viewDark(float wall) {
+    return mix(1.0, mix(1.0 - 0.65 * uDark, 1.0, smoothstep(0.05, 0.7, vFacing)), wall);
+}
+
 float shade(vec3 n) {
     return 0.58 + 0.42 * clamp(dot(n, LIGHT), 0.0, 1.0);
 }
@@ -78,6 +85,7 @@ varying vec3 vN;
 varying float vTop;
 varying vec3 vTint;
 varying float vShade;
+varying float vFacing;
 ${tint}
 
 void main() {
@@ -86,6 +94,8 @@ void main() {
     vTop = aTop;
     vTint = cellTint(aCell);
     vShade = aShade;
+    // Насколько нормаль смотрит на камеру: у стенки, повёрнутой боком, стремится к нулю.
+    vFacing = normalize(normalMatrix * normal).z;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
@@ -126,7 +136,7 @@ void main() {
     // Тень от высокой соседней стенки на нижнем ярусе: плавно темнеет к подножию.
     col *= 1.0 - 0.45 * uShadow * vShade;
 
-    col *= shade(n);
+    col *= shade(n) * viewDark(wall);
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
 }
@@ -192,7 +202,7 @@ void main() {
     col *= mix(1.0 - 0.6 * uShadow, 1.0, lit / 5.0);
     col *= mix(0.7, 1.0, smoothstep(0.0, 0.35, vP.y));
 
-    col *= shade(n);
+    col *= shade(n) * viewDark(1.0 - smoothstep(0.35, 0.85, n.y));
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>
 }

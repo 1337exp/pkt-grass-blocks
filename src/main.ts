@@ -101,6 +101,7 @@ bind('shadow', (v) => (controls.shadow.value = v));
 bind('fringeShadow', (v) => (controls.fringeShadow.value = v));
 bind('cut', (v) => (controls.maskCut.value = v));
 bind('relief', (v) => (controls.relief.value = v));
+bind('dark', (v) => (controls.dark.value = v));
 bind('round', (v) => terrain.setStoneRadius(v / 100));
 
 placeCamera();
