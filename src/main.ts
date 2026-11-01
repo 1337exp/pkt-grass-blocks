@@ -1,7 +1,7 @@
-// Сцена с одним блоком: изометрическая ортографическая камера, вращение мышью, масштаб колесом.
+// Сцена с картой из сетки высот: изометрическая ортографическая камера, вращение мышью, масштаб колесом.
 
 import * as THREE from 'three';
-import { createBlock } from './block';
+import { createTerrain } from './terrain';
 import { controls } from './controls';
 import { setTuftDensity, setTuftSeed, tuftTime } from './tufts';
 
@@ -9,7 +9,7 @@ const PITCH = THREE.MathUtils.degToRad(30);
 const DISTANCE = 10;
 
 let yaw = Math.PI / 4;
-let zoom = 3.4;
+let zoom = 3.8;
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xdfe9ee);
@@ -20,35 +20,16 @@ renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.appendChild(renderer.domElement);
 
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 50);
-const target = new THREE.Vector3(0, 0.6, 0);
+const target = new THREE.Vector3(0, 1, 0);
 
-// Площадка 3×3, чтобы сравнивать блоки рядом.
-const blocks: THREE.Group[] = [];
-for (let x = -1; x <= 1; x++) {
-    for (let z = -1; z <= 1; z++) {
-        const block = createBlock(x, z);
-        blocks.push(block);
-        scene.add(block);
-    }
-}
-
-const hash = (n: number): number => {
-    const v = Math.sin(n * 127.1) * 43758.5453;
-    return v - Math.floor(v);
+// Сетка высот: площадка 5×5 и Г-образный второй ярус, чтобы видеть и стыки на одном уровне, и уступ с внутренним углом.
+const MAP = {
+    w: 5,
+    d: 5,
+    heights: [1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1],
 };
-
-let seed = 0;
-let variation = 0.6;
-
-/** Оттенок травы каждого блока: от жёлтой до тёмной, зависит от зерна и от разброса. */
-function retint(): void {
-    blocks.forEach((block, i) => {
-        const yellow = (hash(i * 3 + seed * 7.1) * 2 - 1) * variation;
-        const bright = (hash(i * 5 + seed * 3.7 + 1.3) * 2 - 1) * variation;
-        const k = 1 + 0.18 * bright;
-        (block.userData.tint as THREE.Vector3).set(k * (1 + 0.25 * yellow), k * (1 + 0.05 * yellow), k * (1 - 0.35 * yellow));
-    });
-}
+const terrain = createTerrain(MAP);
+scene.add(terrain.group);
 
 function placeCamera(): void {
     const c = Math.cos(PITCH);
@@ -109,17 +90,16 @@ function bind(id: string, apply: (v: number) => void): void {
 
 bind('wind', (v) => (controls.wind.value = v));
 bind('seed', (v) => {
-    seed = v;
+    controls.seed.value = v;
     setTuftSeed(v);
-    retint();
 });
-bind('variation', (v) => {
-    variation = v;
-    retint();
-});
+bind('variation', (v) => (controls.variation.value = v));
 bind('density', setTuftDensity);
 bind('stone', (v) => (controls.stoneScale.value = v));
 bind('drip', (v) => (controls.drip.value = v));
+bind('shadow', (v) => (controls.shadow.value = v));
+bind('fringeShadow', (v) => (controls.fringeShadow.value = v));
+bind('round', (v) => terrain.setStoneRadius(v / 100));
 
 placeCamera();
 resize();

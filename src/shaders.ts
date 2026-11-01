@@ -1,5 +1,4 @@
-// Шейдеры блока. Всё рисуется процедурно, без текстур: так сразу видна форма, а не картинка.
-// Узор считается по локальным координатам блока, поэтому не плывёт при вращении камеры.
+// Шейдеры карты. Узор считается по мировым координатам, поэтому не плывёт при вращении камеры и непрерывен через стыки клеток.
 
 const noise = /* glsl */ `
 float hash21(vec2 p) {
@@ -20,12 +19,29 @@ float vnoise(vec2 p) {
 }
 `;
 
+/** Оттенок клетки: от жёлтого до тёмного, зависит от номера клетки, зерна и разброса. */
+const tint = /* glsl */ `
+uniform float uSeed;
+uniform float uVariation;
+
+vec3 cellTint(float cell) {
+    float yellow = (fract(sin((cell * 3.0 + uSeed * 7.1) * 127.1) * 43758.5453) * 2.0 - 1.0) * uVariation;
+    float bright = (fract(sin((cell * 5.0 + uSeed * 3.7 + 1.3) * 127.1) * 43758.5453) * 2.0 - 1.0) * uVariation;
+    float k = 1.0 + 0.18 * bright;
+    return vec3(k * (1.0 + 0.25 * yellow), k * (1.0 + 0.05 * yellow), k * (1.0 - 0.35 * yellow));
+}
+`;
+
 const common = /* glsl */ `
 varying vec3 vP;
 varying vec3 vN;
+varying float vTop;
+varying vec3 vTint;
+varying float vShade;
 
-uniform float uTop;
 uniform float uDrip;
+uniform float uShadow;
+uniform float uFringeShadow;
 ${noise}
 
 /** Как далеко от верхней кромки свисает трава в этой точке. Зависит только от (x, z), поэтому шов на углах непрерывен. */
@@ -34,11 +50,15 @@ float dripLen(vec2 xz) {
     return (0.17 + 0.36 * n * n + 0.08 * vnoise(xz * 27.0)) * uDrip;
 }
 
+/** Направление вдоль стенки в плоскости xz. Грань выбирается жёстко по главной оси нормали: на скруглённом ребре узор не размазывается, а меняется по линии. */
+vec2 tangentOf(vec3 n) {
+    vec2 s = abs(n.x) > abs(n.z) ? vec2(sign(n.x), 0.0) : vec2(0.0, sign(n.z));
+    return vec2(-s.y, s.x);
+}
+
 /** Координата вдоль стенки: на любой грани растёт слева направо. */
 float along(vec3 p, vec3 n) {
-    // Грань выбирается жёстко по главной оси нормали: на скруглённом ребре узор не размазывается, а меняется по линии.
-    vec2 s = abs(n.x) > abs(n.z) ? vec2(sign(n.x), 0.0) : vec2(0.0, sign(n.z));
-    return dot(p.xz, vec2(-s.y, s.x));
+    return dot(p.xz, tangentOf(n));
 }
 
 const vec3 LIGHT = normalize(vec3(0.5, 0.8, 0.35));
@@ -49,15 +69,23 @@ float shade(vec3 n) {
 `;
 
 export const vertex = /* glsl */ `
+attribute float aTop;
+attribute float aCell;
+attribute float aShade;
+
 varying vec3 vP;
 varying vec3 vN;
-
-uniform vec2 uOrigin;
+varying float vTop;
+varying vec3 vTint;
+varying float vShade;
+${tint}
 
 void main() {
-    // Узоры считаются по мировым xz: так они идут непрерывно через соседние блоки.
-    vP = position + vec3(uOrigin.x, 0.0, uOrigin.y);
+    vP = position;
     vN = normal;
+    vTop = aTop;
+    vTint = cellTint(aCell);
+    vShade = aShade;
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
@@ -70,11 +98,10 @@ uniform sampler2D uTopMap;
 uniform sampler2D uSideMap;
 uniform vec3 uDeep;
 uniform vec3 uRim;
-uniform vec3 uTint;
 
 void main() {
     vec3 n = normalize(vN);
-    float d = uTop - vP.y;
+    float d = vTop - vP.y;
     float len = dripLen(vP.xz);
     if (d > len) discard;
 
@@ -87,13 +114,17 @@ void main() {
     // Стенка: нарисованные свисающие пряди, у низа чуть темнее.
     float h = along(vP, n);
     vec3 side = texture2D(uSideMap, vec2(h * 0.8, 1.0 - d * 0.9)).rgb;
-    side = mix(side, uDeep, smoothstep(0.0, len, d) * 0.3);
+    side = mix(side, uDeep, smoothstep(0.0, len, d) * (0.3 + 0.35 * uFringeShadow));
 
     vec3 col = mix(top, side, wall);
 
     // Тёмная кайма по рваному краю: она даёт пряди толщину.
     col = mix(col, uRim, smoothstep(len - 0.045, len, d) * wall);
-    col *= uTint;
+    // Объём бахромы: ближе к рваному краю она густеет в тени, у верхней кромки остаётся светлой.
+    col *= 1.0 - 0.5 * uFringeShadow * wall * smoothstep(len * 0.3, len, d);
+    col *= vTint;
+    // Тень от высокой соседней стенки на нижнем ярусе: плавно темнеет к подножию.
+    col *= 1.0 - 0.45 * uShadow * vShade;
 
     col *= shade(n);
     gl_FragColor = vec4(col, 1.0);
@@ -111,7 +142,7 @@ uniform vec3 uRoot;
 
 void main() {
     vec3 n = normalize(vN);
-    float d = uTop - vP.y;
+    float d = vTop - vP.y;
     float len = dripLen(vP.xz);
     float h = along(vP, n);
 
@@ -129,7 +160,14 @@ void main() {
     col = mix(col, uRoot, root * 0.9);
 
     // Тень под навесом травы и у основания.
-    col *= mix(0.62, 1.0, smoothstep(len, len + 0.14, d));
+    // Мягкая тень от бахромы на камне: усредняем по нескольким точкам вдоль стенки, поэтому она повторяет форму краёв, но размыта.
+    vec2 t = tangentOf(n);
+    float lit = 0.0;
+    for (int k = -2; k <= 2; k++) {
+        float l = dripLen(vP.xz + t * (float(k) * 0.05));
+        lit += smoothstep(l * 0.6, l + 0.4, d);
+    }
+    col *= mix(1.0 - 0.6 * uShadow, 1.0, lit / 5.0);
     col *= mix(0.7, 1.0, smoothstep(0.0, 0.35, vP.y));
 
     col *= shade(n);
@@ -143,13 +181,18 @@ export const tuftVertex = /* glsl */ `
 attribute vec3 aOrigin;
 attribute vec4 aShape;
 attribute float aSeed;
+attribute float aCell;
+attribute float aShade;
 
 uniform float uTime;
 uniform float uWind;
+${tint}
 
 varying vec2 vUv;
 varying vec3 vOrigin;
 varying float vSeed;
+varying vec3 vTint;
+varying float vShade;
 
 void main() {
     vec3 right = vec3(viewMatrix[0][0], viewMatrix[1][0], viewMatrix[2][0]);
@@ -167,6 +210,8 @@ void main() {
     vUv = uv;
     vOrigin = (modelMatrix * vec4(aOrigin, 1.0)).xyz;
     vSeed = aSeed;
+    vTint = cellTint(aCell);
+    vShade = aShade;
     gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(p, 1.0);
 }
 `;
@@ -176,8 +221,10 @@ export const tuftFragment = /* glsl */ `
 varying vec2 vUv;
 varying vec3 vOrigin;
 varying float vSeed;
+varying vec3 vTint;
+varying float vShade;
 
-uniform vec3 uTint;
+uniform float uShadow;
 uniform vec3 uBase;
 uniform vec3 uMid;
 uniform vec3 uTip;
@@ -198,7 +245,8 @@ void main() {
     float t = clamp(v * 0.75 + spots * 0.35 - 0.1 + (vSeed - 0.5) * 0.2, 0.0, 1.0);
     vec3 col = t < 0.5 ? mix(uBase, uMid, t * 2.0) : mix(uMid, uTip, (t - 0.5) * 2.0);
     col = mix(col, uEdge, smoothstep(hw * 0.7, hw, x) * 0.6);
-    col *= uTint;
+    col *= vTint;
+    col *= 1.0 - 0.45 * uShadow * vShade;
 
     gl_FragColor = vec4(col, 1.0);
     #include <colorspace_fragment>

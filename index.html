@@ -39,7 +39,7 @@
             }
             .panel label {
                 display: grid;
-                grid-template-columns: 150px 150px 40px;
+                grid-template-columns: 180px 150px 40px;
                 align-items: center;
                 gap: 8px;
             }
@@ -52,10 +52,13 @@
         <div class="panel">
             <label>Ветер (качание) <input id="wind" type="range" min="0" max="3" step="0.05" value="0" /><output></output></label>
             <label>Зерно травы <input id="seed" type="range" min="0" max="999" step="1" value="0" /><output></output></label>
-            <label>Разброс оттенков <input id="variation" type="range" min="0" max="1" step="0.01" value="0.6" /><output></output></label>
-            <label>Густота травы <input id="density" type="range" min="0" max="1" step="0.01" value="0.61" /><output></output></label>
-            <label>Масштаб камня <input id="stone" type="range" min="0.4" max="2.4" step="0.05" value="0.75" /><output></output></label>
-            <label>Длина бахромы <input id="drip" type="range" min="0.8" max="1.8" step="0.05" value="1" /><output></output></label>
+            <label>Разброс оттенков <input id="variation" type="range" min="0" max="1" step="0.01" value="1" /><output></output></label>
+            <label>Густота травы <input id="density" type="range" min="0" max="1" step="0.01" value="0.6" /><output></output></label>
+            <label>Масштаб камня <input id="stone" type="range" min="0.4" max="2.4" step="0.05" value="0.4" /><output></output></label>
+            <label>Тень на стене и ярусе <input id="shadow" type="range" min="0" max="1" step="0.01" value="1" /><output></output></label>
+            <label>Тень на бахроме <input id="fringeShadow" type="range" min="0" max="1" step="0.01" value="0.35" /><output></output></label>
+            <label>Скругление камня, % <input id="round" type="range" min="0" max="40" step="1" value="20" /><output></output></label>
+            <label>Длина бахромы <input id="drip" type="range" min="0.8" max="1.8" step="0.05" value="1.1" /><output></output></label>
         </div>
         <p class="note">Тяни мышью — вращение, колесо — масштаб</p>
         <script type="module" src="/src/main.ts"></script>
