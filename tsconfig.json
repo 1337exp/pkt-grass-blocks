@@ -8,11 +8,8 @@
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
     "skipLibCheck": true,
-    "types": ["vite/client", "node"],
-    "paths": {
-      "@core/*": ["./src/core/*"],
-      "@three/*": ["./src/three/*"]
-    }
+    "types": ["vite/client", "node"]
   },
-  "include": ["./src/**/*.ts", "src/**/*.vue", "tests", "vite.config.ts"]
+  "include": ["src", "tests", "vite.config.ts"],
+  "exclude": ["архив"]
 }

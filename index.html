@@ -1,12 +1,63 @@
 <!doctype html>
-<html lang="ru" data-tao-theme="dark">
+<html lang="ru">
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>pkt-block-topo</title>
+        <title>Блок травы</title>
+        <style>
+            html,
+            body {
+                margin: 0;
+                height: 100%;
+                background: #dfe9ee;
+                overflow: hidden;
+                font: 13px/1.4 system-ui, sans-serif;
+            }
+            canvas {
+                display: block;
+            }
+            .note {
+                position: fixed;
+                left: 12px;
+                bottom: 12px;
+                margin: 0;
+                color: #1d2914;
+                background: rgb(255 255 255 / 0.6);
+                padding: 6px 10px;
+                border-radius: 8px;
+            }
+            .panel {
+                position: fixed;
+                left: 12px;
+                top: 12px;
+                display: grid;
+                gap: 8px;
+                padding: 10px 12px;
+                color: #1d2914;
+                background: rgb(255 255 255 / 0.7);
+                border-radius: 8px;
+            }
+            .panel label {
+                display: grid;
+                grid-template-columns: 150px 150px 40px;
+                align-items: center;
+                gap: 8px;
+            }
+            .panel output {
+                font-variant-numeric: tabular-nums;
+            }
+        </style>
     </head>
     <body>
-        <div id="app"></div>
-        <script type="module" src="/src/app/main.ts"></script>
+        <div class="panel">
+            <label>Ветер (качание) <input id="wind" type="range" min="0" max="3" step="0.05" value="0" /><output></output></label>
+            <label>Зерно травы <input id="seed" type="range" min="0" max="999" step="1" value="0" /><output></output></label>
+            <label>Разброс оттенков <input id="variation" type="range" min="0" max="1" step="0.01" value="0.6" /><output></output></label>
+            <label>Густота травы <input id="density" type="range" min="0" max="1" step="0.01" value="0.61" /><output></output></label>
+            <label>Масштаб камня <input id="stone" type="range" min="0.4" max="2.4" step="0.05" value="0.75" /><output></output></label>
+            <label>Длина бахромы <input id="drip" type="range" min="0.8" max="1.8" step="0.05" value="1" /><output></output></label>
+        </div>
+        <p class="note">Тяни мышью — вращение, колесо — масштаб</p>
+        <script type="module" src="/src/main.ts"></script>
     </body>
 </html>

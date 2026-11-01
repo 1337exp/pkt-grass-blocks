@@ -1,0 +1,85 @@
+/* Общие стили окна редактора (части в ui/*.vue). Размеры колонок и верхней панели — переменные в page.css (body.editor): по ним
+   же встаёт сцена между панелями. */
+
+.ed-bar {
+    position: fixed;
+    display: flex;
+    gap: 10px;
+    background: var(--tao-color-surface);
+    color: var(--tao-color-text);
+    font-size: 13px;
+}
+
+.ed-side {
+    top: var(--ed-top);
+    bottom: 0;
+    flex-direction: column;
+    padding: 6px 14px 14px;
+    overflow: auto;
+}
+
+.ed-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.ed-grow {
+    flex: 1;
+}
+
+.ed-sep {
+    width: 1px;
+    height: 22px;
+    background: var(--tao-color-border);
+}
+
+.ed-dim {
+    margin: 0;
+    font-size: 12px;
+    color: var(--tao-color-text-muted);
+}
+
+/* поле свойства: подпись слева, ввод справа; .stack — подпись сверху (переключатели на три варианта рядом не влезают) */
+.ed-field {
+    display: grid;
+    grid-template-columns: 82px 1fr;
+    gap: 8px;
+    align-items: center;
+}
+
+.ed-field.stack {
+    grid-template-columns: 1fr;
+    gap: 4px;
+}
+
+.ed-field.stack > span {
+    color: var(--tao-color-text-muted);
+    font-size: 12px;
+}
+
+/* кнопки сеткой: палитра местности, каталог, уровни */
+.ed-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+}
+
+.ed-grid.five {
+    grid-template-columns: repeat(5, 1fr);
+}
+
+.ed-facts {
+    display: grid;
+    grid-template-columns: 80px 1fr;
+    gap: 4px 8px;
+    margin: 0;
+}
+
+.ed-facts dt {
+    color: var(--tao-color-text-muted);
+}
+
+.ed-facts dd {
+    margin: 0;
+}
