@@ -138,7 +138,17 @@ ${common}
 
 uniform sampler2D uStoneMap;
 uniform float uStoneScale;
+uniform float uMaskCut;
+uniform float uRelief;
+uniform vec3 uMudDark;
+uniform vec3 uMudLight;
 uniform vec3 uRoot;
+
+/** Маска камней из яркости нарисованной текстуры: щели между плитами тёмные, плиты светлые. Края мягкие. */
+float stoneMask(vec2 uv) {
+    float l = pow(dot(texture2D(uStoneMap, uv).rgb, vec3(0.299, 0.587, 0.114)), 0.4545);
+    return smoothstep(uMaskCut - 0.06, uMaskCut + 0.06, l);
+}
 
 void main() {
     vec3 n = normalize(vN);
@@ -146,9 +156,21 @@ void main() {
     float len = dripLen(vP.xz);
     float h = along(vP, n);
 
-    // Камень: нарисованная плитка стенки, на верхней грани (её закрывает трава) берём ту же по xz.
+    // Камни лежат поверх мутной земли: маска из текстуры, на верхней грани (её закрывает трава) берём ту же по xz.
     vec2 wallUv = vec2(h, vP.y) * uStoneScale;
-    vec3 col = texture2D(uStoneMap, mix(wallUv, vP.xz * uStoneScale, step(0.7, n.y))).rgb;
+    vec2 uv = mix(wallUv, vP.xz * uStoneScale, step(0.7, n.y));
+    vec3 tex = texture2D(uStoneMap, uv).rgb;
+    float mask = stoneMask(uv);
+
+    // Земля: пятна двух оттенков.
+    vec3 mud = mix(uMudDark, uMudLight, 0.55 * vnoise(uv * 6.0) + 0.45 * vnoise(uv * 19.0));
+
+    // Рельеф без карты нормалей: камень выше по стенке отбрасывает мягкую тень вниз, а верхняя кромка камня подсвечена.
+    float covered = (stoneMask(uv + vec2(0.0, 0.007)) + stoneMask(uv + vec2(0.004, 0.015)) + stoneMask(uv + vec2(0.008, 0.026))) / 3.0;
+    float shadow = covered * (1.0 - mask);
+    float edge = mask * (1.0 - stoneMask(uv + vec2(0.0, 0.01)));
+
+    vec3 col = mix(mud * (1.0 - 0.65 * uRelief * shadow), tex * (1.0 + 0.3 * uRelief * edge), mask);
 
     // Корни: тонкие кривые линии, которые выходят из-под травы вниз.
     float cell = h * 16.0;

@@ -22,11 +22,11 @@ document.body.appendChild(renderer.domElement);
 const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.1, 50);
 const target = new THREE.Vector3(0, 1, 0);
 
-// Сетка высот: площадка 5×5 и Г-образный второй ярус, чтобы видеть и стыки на одном уровне, и уступ с внутренним углом.
+// Сетка высот: площадка 5×5, Г-образный второй ярус (уступ с внутренним углом) и одиночный столб, чтобы видеть скругление.
 const MAP = {
     w: 5,
     d: 5,
-    heights: [1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 1, 1],
+    heights: [1, 1, 1, 1, 1, 1, 2, 2, 2, 1, 1, 2, 1, 1, 1, 1, 2, 1, 2, 1, 1, 1, 1, 1, 1],
 };
 const terrain = createTerrain(MAP);
 scene.add(terrain.group);
@@ -99,6 +99,8 @@ bind('stone', (v) => (controls.stoneScale.value = v));
 bind('drip', (v) => (controls.drip.value = v));
 bind('shadow', (v) => (controls.shadow.value = v));
 bind('fringeShadow', (v) => (controls.fringeShadow.value = v));
+bind('cut', (v) => (controls.maskCut.value = v));
+bind('relief', (v) => (controls.relief.value = v));
 bind('round', (v) => terrain.setStoneRadius(v / 100));
 
 placeCamera();

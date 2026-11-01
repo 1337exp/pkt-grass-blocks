@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { controls } from './controls';
 import { tuftFragment, tuftVertex } from './shaders';
-import { type HeightMap, LEVEL, type Sides, drop, exposure, heightAt, occlusion, reflexCorners, shaded } from './skin';
+import { type HeightMap, LEVEL, type Sides, drop, exposure, floorOf, heightAt, occlusion, reflexCorners, shaded } from './skin';
 
 const RADIUS = 0.13;
 
@@ -88,6 +88,24 @@ function cells(m: HeightMap, pad: number, lift: number): Cell[] {
                 z0,
                 shaded: shaded(m, i, j),
             });
+
+            // Пол под открытой колонкой: на нём тоже растёт трава, она видна у скруглённых углов.
+            const base = floorOf(m, i, j);
+            if (base) {
+                out.push({
+                    id: base.j * m.w + base.i,
+                    top: base.level * LEVEL + lift,
+                    xmin: x0,
+                    xmax: x0 + 1,
+                    zmin: z0,
+                    zmax: z0 + 1,
+                    open: [],
+                    corners: [],
+                    x0,
+                    z0,
+                    shaded: { w: false, e: false, n: false, s: false },
+                });
+            }
         }
     }
     return out;

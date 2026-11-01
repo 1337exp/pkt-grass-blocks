@@ -10,6 +10,8 @@ import { createTufts } from './tufts';
 const PAD = 0.05;
 const LIFT = 0.05;
 const RADIUS = 0.13;
+/** Верх камня лежит ниже травяной оболочки на столько, чтобы их верхние грани не совпадали. */
+const STONE_DROP = 0.03;
 /** Радиус скругления камня в долях клетки, как border-radius в процентах. */
 const STONE_RADIUS = 0.2;
 
@@ -44,7 +46,7 @@ export function createTerrain(map: HeightMap): Terrain {
 
     // Камень без навеса и с лёгким скруглением только открытых рёбер: внутренних швов нет, внешние грани соседей лежат в одной плоскости.
     const body = new THREE.Mesh(
-        buildSkin(map, { pad: 0, lift: LIFT, radius: STONE_RADIUS }),
+        buildSkin(map, { pad: 0, lift: LIFT, radius: STONE_RADIUS, topDrop: STONE_DROP }),
         new THREE.ShaderMaterial({
             vertexShader: vertex,
             fragmentShader: stone,
@@ -52,13 +54,17 @@ export function createTerrain(map: HeightMap): Terrain {
                 ...shared,
                 uStoneMap: { value: tile('stone-wall') },
                 uStoneScale: controls.stoneScale,
+                uMaskCut: controls.maskCut,
+                uRelief: controls.relief,
+                uMudDark: { value: color(0x6f5a36) },
+                uMudLight: { value: color(0x9c8651) },
                 uRoot: { value: color(0x2b2418) },
             },
         }),
     );
 
     const shell = new THREE.Mesh(
-        buildSkin(map, { pad: PAD, lift: LIFT, radius: RADIUS }),
+        buildSkin(map, { pad: PAD, lift: LIFT, radius: RADIUS, floors: true }),
         new THREE.ShaderMaterial({
             vertexShader: vertex,
             fragmentShader: grass,
@@ -76,7 +82,7 @@ export function createTerrain(map: HeightMap): Terrain {
 
     const setStoneRadius = (radius: number): void => {
         body.geometry.dispose();
-        body.geometry = buildSkin(map, { pad: 0, lift: LIFT, radius });
+        body.geometry = buildSkin(map, { pad: 0, lift: LIFT, radius, topDrop: STONE_DROP });
     };
     return { group, setStoneRadius };
 }

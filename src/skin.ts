@@ -99,6 +99,21 @@ export interface SkinOptions {
     lift: number;
     /** Радиус скругления открытых рёбер, 0 значит острые. */
     radius: number;
+    /** На сколько геометрия опущена под расчётный верх. Камню нужно лежать ниже травяной оболочки, иначе их верхние грани совпадают и мерцают. */
+    topDrop?: number;
+    /** Подкладывать пол на уровне соседей под открытыми колонками: иначе у скруглённых углов видна пустота. */
+    floors?: boolean;
+}
+
+/** Пол под открытой колонкой: уровень самого высокого из ниже стоящих соседей и клетка, из которой берётся оттенок. null, если пола не нужно. */
+export function floorOf(m: HeightMap, i: number, j: number): { level: number; i: number; j: number } | null {
+    const h = heightAt(m, i, j);
+    let best: { level: number; i: number; j: number } | null = null;
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const nb = heightAt(m, i + di, j + dj);
+        if (nb > 0 && nb < h && (!best || nb > best.level)) best = { level: nb, i: i + di, j: j + dj };
+    }
+    return best;
 }
 
 /**
@@ -143,6 +158,7 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
 
             const cell = j * m.w + i;
             const topY = h * LEVEL + o.lift;
+            const surf = topY - (o.topDrop ?? 0);
             const ex = exposure(m, i, j);
             const sh = shaded(m, i, j);
             const corners = reflexCorners(m, i, j, o.pad);
@@ -155,9 +171,16 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
 
             // Внутренний ящик для скругления: сжат на радиус только с открытых сторон и сверху.
             const lo: Vec3 = [ex.w && r > 0 ? xmin + r : -Infinity, -Infinity, ex.n && r > 0 ? zmin + r : -Infinity];
-            const hi: Vec3 = [ex.e && r > 0 ? xmax - r : Infinity, r > 0 ? topY - r : Infinity, ex.s && r > 0 ? zmax - r : Infinity];
+            const hi: Vec3 = [ex.e && r > 0 ? xmax - r : Infinity, r > 0 ? surf - r : Infinity, ex.s && r > 0 ? zmax - r : Infinity];
 
-            const addPatch = (us: number[], vs: number[], at: (u: number, v: number) => Vec3, face: Vec3, top = false): void => {
+            const addPatch = (
+                us: number[],
+                vs: number[],
+                at: (u: number, v: number) => Vec3,
+                face: Vec3,
+                top = false,
+                flat?: { top: number; cell: number },
+            ): void => {
                 const base = pos.length / 3;
                 for (const v of vs) {
                     for (const u of us) {
@@ -170,7 +193,7 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
                         ];
                         const d: Vec3 = [p[0] - q[0], p[1] - q[1], p[2] - q[2]];
                         const len = Math.hypot(d[0], d[1], d[2]);
-                        if (r > 0 && len > 1e-7) {
+                        if (!flat && r > 0 && len > 1e-7) {
                             n = [d[0] / len, d[1] / len, d[2] / len];
                             p[0] = q[0] + n[0] * r;
                             p[1] = q[1] + n[1] * r;
@@ -198,8 +221,8 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
                         }
                         pos.push(p[0], p[1], p[2]);
                         nor.push(n[0], n[1], n[2]);
-                        topAttr.push(topY);
-                        cellAttr.push(cell);
+                        topAttr.push(flat ? flat.top : topY);
+                        cellAttr.push(flat ? flat.cell : cell);
                         shadeAttr.push(shade);
                     }
                 }
@@ -231,17 +254,17 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
             const rows = (bottom: number): number[] => {
                 const out = [bottom];
                 if (r > 0) {
-                    const inner = topY - r;
+                    const inner = surf - r;
                     out.push(inner);
                     for (let k = 1; k <= STEPS; k++) out.push(inner + r * Math.tan((quarter * k) / STEPS));
                 } else {
-                    out.push(topY);
+                    out.push(surf);
                 }
                 return out;
             };
             const floor = (ni: number, nj: number): number => {
                 const nb = heightAt(m, ni, nj);
-                return nb > 0 ? nb * LEVEL + o.lift : 0;
+                return nb > 0 ? nb * LEVEL + o.lift - (o.topDrop ?? 0) : 0;
             };
 
             // Лишние линии верхней грани: для плавной тени у высоких стенок и для скругления вокруг внутренних углов.
@@ -261,7 +284,7 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
             addPatch(
                 axisLine(xmin, xmax, ex.w, ex.e, r, topX),
                 axisLine(zmin, zmax, ex.n, ex.s, r, topZ),
-                (u, v) => [u, topY, v],
+                (u, v) => [u, surf, v],
                 [0, 1, 0],
                 true,
             );
@@ -269,6 +292,13 @@ export function buildSkin(m: HeightMap, o: SkinOptions): THREE.BufferGeometry {
             if (ex.w) addPatch(axisLine(zmin, zmax, ex.n, ex.s, r), rows(floor(i - 1, j)), (u, v) => [xmin, v, u], [-1, 0, 0]);
             if (ex.s) addPatch(axisLine(xmin, xmax, ex.w, ex.e, r), rows(floor(i, j + 1)), (u, v) => [u, v, zmax], [0, 0, 1]);
             if (ex.n) addPatch(axisLine(xmin, xmax, ex.w, ex.e, r), rows(floor(i, j - 1)), (u, v) => [u, v, zmin], [0, 0, -1]);
+
+            // Пол под колонкой на уровне соседей: у скруглённых углов видна земля, а не пустота.
+            const base = o.floors ? floorOf(m, i, j) : null;
+            if (base) {
+                const y = base.level * LEVEL + o.lift;
+                addPatch([x0, x0 + 1], [z0, z0 + 1], (u, v) => [u, y, v], [0, 1, 0], false, { top: y, cell: base.j * m.w + base.i });
+            }
         }
     }
 
