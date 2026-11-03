@@ -24,7 +24,7 @@ const tiles = new Map<string, THREE.Texture>();
 function tile(name: string): THREE.Texture {
     const cached = tiles.get(name);
     if (cached) return cached;
-    const tex = loader.load(`/tex/${name}.png`);
+    const tex = loader.load(`${import.meta.env.BASE_URL}tex/${name}.png`);
     tex.wrapS = THREE.RepeatWrapping;
     tex.wrapT = THREE.RepeatWrapping;
     tex.colorSpace = THREE.SRGBColorSpace;
