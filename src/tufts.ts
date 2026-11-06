@@ -2,6 +2,7 @@
 // Форма и цвет считаются в шейдере, картинок нет. Раскладка случайная и зависит от зерна (seed).
 
 import * as THREE from 'three';
+import { mulberry32 } from '@1337exp/pkt-threejs-blueprint/rng';
 import { controls } from './controls';
 import { tuftFragment, tuftVertex } from './shaders';
 import { type HeightMap, LEVEL, type Sides, drop, exposure, floorOf, heightAt, occlusion, reflexCorners, shaded } from './skin';
@@ -32,17 +33,6 @@ export function setTuftDensity(density: number): void {
 /** Новое зерно: вся трава раскладывается заново. */
 export function setTuftSeed(seed: number): void {
     for (const { scatter } of patches) scatter(seed);
-}
-
-function rng(seed: number): () => number {
-    let s = seed >>> 0;
-    return () => {
-        s = (s + 0x6d2b79f5) >>> 0;
-        let t = s;
-        t = Math.imul(t ^ (t >>> 15), t | 1);
-        t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-        return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-    };
 }
 
 interface Cell {
@@ -122,7 +112,7 @@ export function createTufts(m: HeightMap, pad: number, lift: number, seed = 0, d
     const shade = new THREE.InstancedBufferAttribute(new Float32Array(total), 1);
 
     const scatter = (s: number): void => {
-        const rand = rng(7 + s * 104729);
+        const rand = mulberry32(7 + s * 104729);
         // Порядок «слой за слоем по всем клеткам»: обрезка по густоте снимает травинки равномерно с каждой клетки.
         for (let k = 0; k < PER_CELL; k++) {
             for (let c = 0; c < list.length; c++) {

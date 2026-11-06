@@ -12,6 +12,8 @@ Everything is procedural except three textures (grass top, grass side, stone). N
 
 ## Run
 
+It uses our shared `@1337exp/pkt-threejs-blueprint` (seeded random), linked from the sibling folder (`file:../pkt-threejs-blueprint`) until it is published: build it once there (`npm install && npm run build`) before `npm install` here.
+
 ```bash
 npm install
 npm run dev

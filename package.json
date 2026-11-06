@@ -12,6 +12,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@1337exp/pkt-threejs-blueprint": "file:../pkt-threejs-blueprint",
     "@1337exp/taoui": "^5.16.2",
     "@1337exp/taoux": "^0.5.5",
     "three": "^0.186.1",
